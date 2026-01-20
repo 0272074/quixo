@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>QUIXO (クイキシオ)</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@900&display=swap');
+
+        :root {
+            /* Wooden Palette */
+            --bg-periphery: #e3d5ca;
+            --board-wood: #8d6e63;
+            --board-inner: #5d4037;
+
+            --cube-face: #d7ccc8;
+            --cube-face-dark: #a1887f;
+            --cube-side: #795548;
+
+            /* Marks - Both Black/Dark */
+            --mark-color: #2c2c2c;
+
+            --highlight: #ffee58;
+            --arrow-bg: rgba(255, 255, 255, 0.9);
+            --arrow-color: #2e7d32;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-periphery);
+            background-image:
+                radial-gradient(#d3c0b0 1px, transparent 1px),
+                linear-gradient(to bottom right, #f0e6dd, #dccbbd);
+            background-size: 20px 20px, 100% 100%;
+            color: #3e2723;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.5);
+        }
+
+        h1 {
+            margin: 0;
+            font-size: 2.8rem;
+            letter-spacing: 3px;
+            font-weight: 800;
+            color: #3e2723;
+            font-family: 'Noto Serif JP', serif;
+            /* Stylish font for title too */
+        }
+
+        .status-bar {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: center;
+            margin-top: 10px;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        .current-turn {
+            padding: 8px 20px;
+            border-radius: 30px;
+            background: rgba(255, 255, 255, 0.9);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border: 3px solid transparent;
+            min-width: 220px;
+            text-align: center;
+            transition: all 0.3s;
+        }
+
+        /* Border color to distinguish turns, but text is standard dark */
+        .p1-turn {
+            border-color: #555;
+            color: #333;
+        }
+
+        .p2-turn {
+            border-color: #555;
+            color: #333;
+        }
+
+        /* Board Container */
+        .board-container {
+            position: relative;
+            padding: 15px;
+            background: var(--board-wood);
+            border-radius: 16px;
+            box-shadow:
+                0 20px 40px rgba(0, 0, 0, 0.4),
+                inset 0 2px 5px rgba(255, 255, 255, 0.2),
+                inset 0 -5px 10px rgba(0, 0, 0, 0.2);
+            background-image: repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.02) 0px, rgba(0, 0, 0, 0.02) 2px, transparent 2px, transparent 8px);
+        }
+
+        .board-recess {
+            background: var(--board-inner);
+            border-radius: 8px;
+            width: 85vmin;
+            height: 85vmin;
+            max-width: 500px;
+            max-height: 500px;
+            position: relative;
+            box-shadow: inset 0 5px 15px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Cube Styles */
+        .cube {
+            position: absolute;
+            width: 19%;
+            height: 19%;
+            background: linear-gradient(135deg, var(--cube-face), var(--cube-face-dark));
+            border-radius: 10px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: top 0.4s cubic-bezier(0.25, 1, 0.5, 1), left 0.4s cubic-bezier(0.25, 1, 0.5, 1), transform 0.2s, box-shadow 0.2s;
+            cursor: pointer;
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.4),
+                inset 0 -3px 0 rgba(0, 0, 0, 0.2),
+                0 4px 5px rgba(0, 0, 0, 0.4),
+                0 2px 0 var(--cube-side);
+        }
+
+        .cube:hover:not(.disabled) {
+            transform: translateY(-2px);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.4),
+                inset 0 -3px 0 rgba(0, 0, 0, 0.2),
+                0 6px 8px rgba(0, 0, 0, 0.3),
+                0 3px 0 var(--cube-side);
+        }
+
+        .cube.selected {
+            background: linear-gradient(135deg, #fff9c4, #fff176);
+            transform: translateY(-4px) scale(1.02);
+            box-shadow:
+                0 0 15px var(--highlight),
+                0 8px 10px rgba(0, 0, 0, 0.3),
+                0 4px 0 #bcaa28;
+            z-index: 100 !important;
+        }
+
+        /* Stylish Mark Styles */
+        .mark-common::before {
+            color: var(--mark-color);
+            /* Google Font: Noto Serif JP for stylish heavyweight look */
+            font-family: 'Noto Serif JP', serif;
+            font-weight: 900;
+            font-size: 3.5rem;
+            /* Larger */
+            line-height: 1;
+            /* Engraved effect */
+            text-shadow: 0 1px 1px rgba(255, 255, 255, 0.3), 0 -1px 1px rgba(0, 0, 0, 0.2);
+            opacity: 0.9;
+        }
+
+        .mark-o::before {
+            content: '○';
+            @extend .mark-common;
+        }
+
+        .mark-x::before {
+            content: '×';
+            @extend .mark-common;
+        }
+
+        /* Since CSS doesn't support @extend natively, apply class directly */
+        .cube.mark-o::before,
+        .cube.mark-x::before {
+            color: var(--mark-color);
+            font-family: 'Noto Serif JP', serif;
+            font-weight: 900;
+            font-size: 3.2rem;
+            /* Adjusted for container */
+            text-shadow: 1px 1px 0 rgba(255, 255, 255, 0.4), -1px -1px 0 rgba(0, 0, 0, 0.1);
+        }
+
+        .cube.mark-o::before {
+            content: '○';
+        }
+
+        .cube.mark-x::before {
+            content: '×';
+        }
+
+        /* Arrow Controls */
+        .arrow-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 200;
+        }
+
+        .arrow-btn {
+            position: absolute;
+            width: 44px;
+            height: 44px;
+            background: var(--arrow-bg);
+            color: var(--arrow-color);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.8rem;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            pointer-events: auto;
+            border: 2px solid var(--arrow-color);
+            transition: transform 0.2s, background 0.2s;
+            font-weight: 900;
+        }
+
+        .arrow-btn:hover {
+            transform: scale(1.15);
+            background: white;
+        }
+
+        /* Controls */
+        .controls {
+            margin-top: 25px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        button {
+            background: #efebe9;
+            border: none;
+            box-shadow: 0 4px 0 #8d6e63;
+            padding: 10px 18px;
+            border-radius: 8px;
+            font-weight: bold;
+            color: #3e2723;
+            cursor: pointer;
+            font-family: 'Noto Serif JP', sans-serif;
+            /* Consistent font */
+            transition: all 0.1s;
+            font-size: 0.95rem;
+        }
+
+        button:active {
+            transform: translateY(4px);
+            box-shadow: 0 0 0 #8d6e63;
+        }
+
+        button.active {
+            background: #8d6e63;
+            color: white;
+            box-shadow: 0 4px 0 #5d4037;
+        }
+
+        button.active:active {
+            box-shadow: 0 0 0 #5d4037;
+        }
+
+        .label {
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+            color: #3e2723;
+            margin-right: 5px;
+        }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .modal-overlay.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-content {
+            background: #efebe9;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            max-width: 90%;
+            border: 4px solid #8d6e63;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="app">
+        <header>
+            <h1>QUIXO</h1>
+            <div class="status-bar">
+                <div id="turn-display" class="current-turn">プレイヤー1 (○) の手番</div>
+            </div>
+        </header>
+
+        <main>
+            <div class="board-container">
+                <div class="board-recess" id="board-area">
+                    <div id="cubes-layer" style="position: absolute; top:0; left:0; width:100%; height:100%;"></div>
+                    <div id="arrow-layer" class="arrow-overlay"></div>
+                </div>
+            </div>
+
+            <div class="controls">
+                <div class="label">モード:</div>
+                <button id="mode-pvc" class="active" onclick="setMode('pvc')">1人で遊ぶ</button>
+                <button id="mode-pvp" onclick="setMode('pvp')">2人で遊ぶ</button>
+            </div>
+
+            <div class="controls" id="npc-controls">
+                <div class="label">CPUの強さ:</div>
+                <button id="lvl-1" class="active" onclick="setNpcLevel(1)">よわい (Lv1)</button>
+                <button id="lvl-2" onclick="setNpcLevel(2)">ふつう (Lv2)</button>
+                <button id="lvl-3" onclick="setNpcLevel(3)">つよい (Lv3)</button>
+            </div>
+
+            <div class="controls" style="margin-top: 30px;">
+                <button onclick="resetGame()" style="background:#ffccbc; color: #d84315;">さいしょから</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Win Modal -->
+    <div id="win-modal" class="modal-overlay">
+        <div class="modal-content">
+            <h2 id="win-title" style="margin-top:0; font-size: 2rem; font-family: 'Noto Serif JP', serif;">プレイヤー1の勝利！
+            </h2>
+            <div style="font-size: 5rem; margin: 20px 0;" id="win-icon">🎉</div>
+            <button onclick="closeModal()" style="font-size: 1.2rem; padding: 15px 30px;">もう一度遊ぶ</button>
+        </div>
+    </div>
+
+    <script>
+        const SIZE = 5;
+        const EMPTY = 0;
+        const P1 = 1; // O
+        const P2 = 2; // X
+
+        const MODE_PVP = 'pvp';
+        const MODE_PVC = 'pvc';
+
+        /**
+         * Core Game Logic with ID Tracking
+         */
+        class QuixoGame {
+            constructor() {
+                this.initBoard();
+            }
+
+            initBoard() {
+                this.board = [];
+                let idCounter = 0;
+                for (let r = 0; r < SIZE; r++) {
+                    const row = [];
+                    for (let c = 0; c < SIZE; c++) {
+                        row.push({ id: idCounter++, owner: EMPTY });
+                    }
+                    this.board.push(row);
+                }
+
+                this.turn = P1;
+                this.winner = null;
+                this.selected = null;
+            }
+
+            clone() {
+                const newGame = new QuixoGame();
+                newGame.board = this.board.map(row => row.map(cell => ({ ...cell })));
+                newGame.turn = this.turn;
+                newGame.winner = this.winner;
+                newGame.selected = this.selected ? { ...this.selected } : null;
+                return newGame;
+            }
+
+            isValidSelection(r, c, player) {
+                if (r !== 0 && r !== SIZE - 1 && c !== 0 && c !== SIZE - 1) return false;
+                const cell = this.board[r][c];
+                return cell.owner === EMPTY || cell.owner === player;
+            }
+
+            selectPiece(r, c) {
+                if (this.isValidSelection(r, c, this.turn)) {
+                    this.selected = { r, c };
+                    return true;
+                }
+                return false;
+            }
+
+            getPossibleMoves() {
+                if (!this.selected) return [];
+                const { r, c } = this.selected;
+                const possible = [];
+                if (r !== 0) possible.push('TOP');
+                if (r !== SIZE - 1) possible.push('BOTTOM');
+                if (c !== 0) possible.push('LEFT');
+                if (c !== SIZE - 1) possible.push('RIGHT');
+                return possible;
+            }
+
+            applyMove(moveType) {
+                if (!this.selected) return;
+                const { r, c } = this.selected;
+                const player = this.turn;
+
+                const piece = this.board[r][c];
+                piece.owner = player;
+
+                if (moveType === 'TOP' || moveType === 'BOTTOM') {
+                    let col = [];
+                    for (let i = 0; i < SIZE; i++) col.push(this.board[i][c]);
+                    col.splice(r, 1);
+                    if (moveType === 'TOP') col.unshift(piece);
+                    else col.push(piece);
+                    for (let i = 0; i < SIZE; i++) this.board[i][c] = col[i];
+                } else {
+                    let row = [...this.board[r]];
+                    row.splice(c, 1);
+                    if (moveType === 'LEFT') row.unshift(piece);
+                    else row.push(piece);
+                    this.board[r] = row;
+                }
+
+                this.selected = null;
+                this.checkWin();
+                if (!this.winner) {
+                    this.turn = this.turn === P1 ? P2 : P1;
+                }
+            }
+
+            checkWin() {
+                let p1Wins = false;
+                let p2Wins = false;
+                const getOwner = (r, c) => this.board[r][c].owner;
+
+                for (let i = 0; i < SIZE; i++) {
+                    let r1 = true, r2 = true;
+                    for (let j = 0; j < SIZE; j++) {
+                        if (getOwner(i, j) !== P1) r1 = false;
+                        if (getOwner(i, j) !== P2) r2 = false;
+                    }
+                    if (r1) p1Wins = true;
+                    if (r2) p2Wins = true;
+
+                    let c1 = true, c2 = true;
+                    for (let j = 0; j < SIZE; j++) {
+                        if (getOwner(j, i) !== P1) c1 = false;
+                        if (getOwner(j, i) !== P2) c2 = false;
+                    }
+                    if (c1) p1Wins = true;
+                    if (c2) p2Wins = true;
+                }
+
+                let d1_1 = true, d1_2 = true;
+                let d2_1 = true, d2_2 = true;
+                for (let i = 0; i < SIZE; i++) {
+                    if (getOwner(i, i) !== P1) d1_1 = false;
+                    if (getOwner(i, i) !== P2) d1_2 = false;
+                    if (getOwner(i, SIZE - 1 - i) !== P1) d2_1 = false;
+                    if (getOwner(i, SIZE - 1 - i) !== P2) d2_2 = false;
+                }
+                if (d1_1 || d2_1) p1Wins = true;
+                if (d1_2 || d2_2) p2Wins = true;
+
+                if (p1Wins && p2Wins) this.winner = this.turn;
+                else if (p1Wins) this.winner = P1;
+                else if (p2Wins) this.winner = P2;
+            }
+        }
+
+        const game = new QuixoGame();
+        let currentMode = MODE_PVC;
+        let npcLevel = 1;
+        let isAnimating = false;
+
+        const cubesLayer = document.getElementById('cubes-layer');
+        const arrowLayer = document.getElementById('arrow-layer');
+        const statusEl = document.getElementById('turn-display');
+        const modalEl = document.getElementById('win-modal');
+
+        const cubeElements = {};
+
+        function initUI() {
+            cubesLayer.innerHTML = '';
+            for (let i = 0; i < 25; i++) {
+                const el = document.createElement('div');
+                el.className = 'cube';
+                el.id = `cube-${i}`;
+                const r = Math.floor(i / SIZE);
+                const c = i % SIZE;
+                setCubePos(el, r, c);
+                el.onclick = (e) => handleCubeClick(e, i);
+                cubesLayer.appendChild(el);
+                cubeElements[i] = el;
+            }
+            updateView();
+        }
+
+        function setCubePos(el, r, c) {
+            const CELL_SIZE = 20;
+            const offset = (CELL_SIZE - 19) / 2;
+            el.style.top = (r * CELL_SIZE + offset) + '%';
+            el.style.left = (c * CELL_SIZE + offset) + '%';
+            el.style.zIndex = 1;
+        }
+
+        function findPosById(id) {
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    if (game.board[r][c].id === id) return { r, c };
+                }
+            }
+            return null;
+        }
+
+        function handleCubeClick(e, id) {
+            if (isAnimating || game.winner) return;
+            if (currentMode === MODE_PVC && game.turn === P2) return;
+
+            const pos = findPosById(id);
+            if (!pos) return;
+
+            if (game.selected && game.selected.r === pos.r && game.selected.c === pos.c) {
+                game.selected = null;
+                updateView();
+            } else {
+                if (game.selectPiece(pos.r, pos.c)) {
+                    updateView();
+                }
+            }
+        }
+
+        function updateView() {
+            arrowLayer.innerHTML = '';
+
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    const cell = game.board[r][c];
+                    const el = cubeElements[cell.id];
+                    setCubePos(el, r, c);
+                    el.className = 'cube';
+                    if (cell.owner === P1) el.classList.add('mark-o');
+                    if (cell.owner === P2) el.classList.add('mark-x');
+
+                    if (game.selected && game.selected.r === r && game.selected.c === c) {
+                        el.classList.add('selected');
+                        renderArrows(r, c);
+                    } else {
+                        if (!game.winner && !isAnimating && game.turn === ((currentMode === MODE_PVC && P1) || game.turn)) {
+                            if (!game.isValidSelection(r, c, game.turn)) {
+                                el.classList.add('disabled');
+                            }
+                        }
+                    }
+                }
+            }
+            updateStatus();
+        }
+
+        function renderArrows(r, c) {
+            const moves = game.getPossibleMoves();
+            moves.forEach(m => {
+                const btn = document.createElement('div');
+                btn.className = 'arrow-btn';
+
+                if (m === 'TOP') {
+                    btn.innerText = '↓';
+                    btn.style.left = (c * 20 + 10) + '%';
+                    btn.style.top = '2%';
+                } else if (m === 'BOTTOM') {
+                    btn.innerText = '↑';
+                    btn.style.left = (c * 20 + 10) + '%';
+                    btn.style.top = '88%';
+                } else if (m === 'LEFT') {
+                    btn.innerText = '→';
+                    btn.style.top = (r * 20 + 10) + '%';
+                    btn.style.left = '2%';
+                } else if (m === 'RIGHT') {
+                    btn.innerText = '←';
+                    btn.style.top = (r * 20 + 10) + '%';
+                    btn.style.left = '88%';
+                }
+
+                btn.onclick = (e) => {
+                    e.stopPropagation();
+                    executeMove(m);
+                };
+                arrowLayer.appendChild(btn);
+            });
+        }
+
+        async function executeMove(moveType) {
+            if (isAnimating) return;
+            isAnimating = true;
+            arrowLayer.innerHTML = '';
+            game.applyMove(moveType);
+            updateView();
+            await new Promise(r => setTimeout(r, 450));
+
+            if (game.winner) {
+                showWinModal(game.winner);
+                isAnimating = false;
+                return;
+            }
+            isAnimating = false;
+
+            if (currentMode === MODE_PVC && game.turn === P2) {
+                setTimeout(npcTurn, 200);
+            }
+        }
+
+        async function npcTurn() {
+            if (game.winner || isAnimating) return;
+            isAnimating = true;
+            updateStatus('CPUが考え中...');
+
+            await new Promise(r => setTimeout(r, 600));
+
+            const move = getNpcMove(npcLevel);
+            game.selected = { r: move.r, c: move.c };
+            updateView();
+
+            await new Promise(r => setTimeout(r, 500));
+            isAnimating = false;
+            executeMove(move.dir);
+        }
+
+        function getNpcMove(level) {
+            const moves = [];
+            for (let r = 0; r < SIZE; r++) {
+                for (let c = 0; c < SIZE; c++) {
+                    if (game.isValidSelection(r, c, P2)) {
+                        game.selected = { r, c };
+                        game.getPossibleMoves().forEach(d => moves.push({ r, c, dir: d }));
+                        game.selected = null;
+                    }
+                }
+            }
+
+            if (level === 1) return moves[Math.floor(Math.random() * moves.length)];
+
+            for (let m of moves) {
+                const sim = game.clone();
+                sim.selected = { r: m.r, c: m.c };
+                sim.applyMove(m.dir);
+                if (sim.winner === P2) return m;
+            }
+
+            const safe = moves.filter(m => {
+                const sim = game.clone();
+                sim.selected = { r: m.r, c: m.c };
+                sim.applyMove(m.dir);
+                return sim.winner !== P1;
+            });
+
+            const candidates = safe.length > 0 ? safe : moves;
+
+            if (level === 2) return candidates[Math.floor(Math.random() * candidates.length)];
+
+            let bestScore = -Infinity;
+            let bestMove = candidates[0];
+            for (let m of candidates) {
+                const sim = game.clone();
+                sim.selected = { r: m.r, c: m.c };
+                sim.applyMove(m.dir);
+                const s = evaluate(sim.board);
+                if (s > bestScore) { bestScore = s; bestMove = m; }
+            }
+            return bestMove;
+        }
+
+        function evaluate(board) {
+            const getOwn = (r, c) => board[r][c].owner;
+            let score = 0;
+            score += countLines(board, P2, getOwn);
+            score -= countLines(board, P1, getOwn);
+            return score;
+        }
+
+        function countLines(board, player, getter) {
+            let s = 0;
+            for (let i = 0; i < SIZE; i++) {
+                let cnt = 0;
+                for (let j = 0; j < SIZE; j++) if (getter(i, j) === player) cnt++;
+                if (cnt > 0) s += Math.pow(10, cnt);
+            }
+            for (let i = 0; i < SIZE; i++) {
+                let cnt = 0;
+                for (let j = 0; j < SIZE; j++) if (getter(j, i) === player) cnt++;
+                if (cnt > 0) s += Math.pow(10, cnt);
+            }
+            let d1 = 0, d2 = 0;
+            for (let i = 0; i < SIZE; i++) {
+                if (getter(i, i) === player) d1++;
+                if (getter(i, SIZE - 1 - i) === player) d2++;
+            }
+            if (d1 > 0) s += Math.pow(10, d1);
+            if (d2 > 0) s += Math.pow(10, d2);
+            return s;
+        }
+
+        function updateStatus(customMsg) {
+            const el = document.getElementById('turn-display');
+            if (customMsg) {
+                el.innerText = customMsg;
+                el.style.border = '3px solid #ccc';
+                el.style.color = '#777';
+                return;
+            }
+
+            if (game.turn === P1) {
+                el.innerText = '手番: プレイヤー1 (○)';
+                el.className = 'current-turn p1-turn';
+            } else {
+                el.innerText = currentMode === MODE_PVC ? '手番: CPU (×)' : '手番: プレイヤー2 (×)';
+                el.className = 'current-turn p2-turn';
+            }
+        }
+
+        function setMode(mode) {
+            currentMode = mode;
+            document.getElementById('mode-pvc').className = mode === 'pvc' ? 'active' : '';
+            document.getElementById('mode-pvp').className = mode === 'pvp' ? 'active' : '';
+            document.getElementById('npc-controls').classList.toggle('hidden', mode === 'pvp');
+            resetGame();
+        }
+
+        function setNpcLevel(lvl) {
+            npcLevel = lvl;
+            document.getElementById('lvl-1').className = lvl === 1 ? 'active' : '';
+            document.getElementById('lvl-2').className = lvl === 2 ? 'active' : '';
+            document.getElementById('lvl-3').className = lvl === 3 ? 'active' : '';
+        }
+
+        function resetGame() {
+            game.initBoard();
+            isAnimating = false;
+            closeModal();
+            initUI();
+        }
+
+        function closeModal() {
+            modalEl.classList.remove('show');
+        }
+
+        const winTitle = document.getElementById('win-title');
+        const winIcon = document.getElementById('win-icon');
+
+        function showWinModal(winner) {
+            if (winner === P1) {
+                winTitle.innerText = "プレイヤー1 (○) の勝利！";
+                // Black for consistency as requested? Or keep hints? 
+                // User asked O,X to be black. But title text?
+                // Let's keep title generic or dark.
+                winTitle.style.color = "#2c2c2c";
+            } else {
+                winTitle.innerText = currentMode === MODE_PVC ? "CPU (×) の勝利！" : "プレイヤー2 (×) の勝利！";
+                winTitle.style.color = "#2c2c2c";
+            }
+            modalEl.classList.add('show');
+        }
+
+        initUI();
+
+    </script>
+</body>
+
+</html>
