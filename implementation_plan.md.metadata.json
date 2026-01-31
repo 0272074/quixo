@@ -1,0 +1,6 @@
+{
+  "artifactType": "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary": "QUIXOゲームレイアウト修正計画\n4:3ディスプレイ等で盤面が見切れる問題に対し、スクロールの許可と盤面サイズのレスポンシブ調整を行います。",
+  "updatedAt": "2026-01-31T09:02:57.218091800Z",
+  "version": "1"
+}

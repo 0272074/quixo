@@ -48,7 +48,7 @@
             align-items: center;
             justify-content: center;
             min-height: 100vh;
-            overflow: hidden;
+            overflow: auto;
         }
 
         header {
@@ -115,8 +115,8 @@
         .board-recess {
             background: var(--board-inner);
             border-radius: 8px;
-            width: 85vmin;
-            height: 85vmin;
+            width: min(85vmin, 60vh);
+            height: min(85vmin, 60vh);
             max-width: 500px;
             max-height: 500px;
             position: relative;
@@ -803,8 +803,15 @@
             modalEl.classList.add('show');
         }
 
-        initUI();
+        window.onload = function () {
+            initUI();
+        };
 
+        window.onclick = function (event) {
+            if (event.target == modalEl) {
+                // Optional: click outside to close
+            }
+        }
     </script>
 </body>
 
